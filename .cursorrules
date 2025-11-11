@@ -1,0 +1,36 @@
+Project: AI-Invoice
+
+Tech stack:
+- Backend: Node.js, Express.js, TypeScript, MySQL 8, Flyway
+- Integrations: DigitalOcean Spaces (S3), OpenAI Whisper (STT), GPT-5 (invoice extraction)
+- Frontend: React 18, TypeScript, Redux Toolkit, React Router, Vite
+
+Architecture conventions:
+- Auth: JWT access (15m) via Authorization header + httpOnly refresh cookie `aii_rt` with sliding 7-day window when Remember Me is enabled.
+- Storage: Direct presigned PUT uploads to Spaces. Object keys: `aiinvoice-{GUID}.{ext}`.
+- Queue: MySQL-backed jobs table with idempotency via `unique_key` (audio object key).
+- APIs: Namespaced under `/api`. Zod for request validation when needed. Early returns, guard clauses, no silent catches.
+- Cookies: Secure, HttpOnly, SameSite=Lax by default. CORS allows credentials.
+- Types: TypeScript strict mode; avoid `any`. Explicit types for public functions.
+
+Frontend UX rules:
+- AppShell with top nav (AI-Invoice title, Logout), left nav (search + “+” to create invoice) and main editor pane.
+- Invoice editor allows editing rows: Date, Description, Quantity, Amount. Shows Subtotal, TPS 5%, TVQ 9.975%, and Total.
+- Audio player renders when invoice has `audio_url`.
+- Use Redux Toolkit slices in `src/features/*`.
+
+File layout:
+- `backend/src` with `config/`, `auth/`, `routes/`, `services/`, `workers/`.
+- `backend/flyway/` migrations (V1 schema).
+- `frontend/src` with `features/`, `routes/`, `app/`, `utils/`.
+
+Security/quality:
+- Validate inputs server-side; parameterized queries only.
+- Never expose refresh tokens to JS; rotate on each refresh.
+- Keep access token in memory only.
+- Use early returns; avoid deep nesting and unnecessary try/catch.
+
+Remember:
+- Quebec taxes for UI calculations only (TPS 5%, TVQ 9.975%) with proper rounding as implemented.
+
+
