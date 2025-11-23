@@ -6,6 +6,7 @@ import { store } from "./app/store";
 import Login from "./routes/Login";
 import AppShell from "./routes/AppShell";
 import InvoiceView from "./routes/InvoiceView";
+import { CssBaseline, ThemeProvider, createTheme } from "@mui/material";
 
 const router = createBrowserRouter([
 	{ path: "/", element: <Login /> },
@@ -16,10 +17,17 @@ const router = createBrowserRouter([
 	}
 ]);
 
+const theme = createTheme({
+	palette: { mode: "light", primary: { main: "#1976d2" } }
+});
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
 	<React.StrictMode>
 		<Provider store={store}>
-			<RouterProvider router={router} />
+			<ThemeProvider theme={theme}>
+				<CssBaseline />
+				<RouterProvider router={router} />
+			</ThemeProvider>
 		</Provider>
 	</React.StrictMode>
 );

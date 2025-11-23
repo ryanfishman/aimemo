@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../utils/hooks";
 import { login, refresh } from "../features/auth/authSlice";
 import { useNavigate } from "react-router-dom";
+import { Box, Button, Checkbox, Container, FormControlLabel, Paper, TextField, Typography } from "@mui/material";
 
 export default function Login() {
 	const dispatch = useAppDispatch();
@@ -29,26 +30,30 @@ export default function Login() {
 	}
 
 	return (
-		<div style={{ display: "grid", placeItems: "center", height: "100vh" }}>
-			<form
-				onSubmit={onSubmit}
-				style={{ display: "grid", gap: 12, width: 320, border: "1px solid #ddd", padding: 24, borderRadius: 8 }}
-			>
-				<h2 style={{ margin: 0, textAlign: "center" }}>AI-Invoice</h2>
-				<input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-				<input
-					placeholder="Password"
-					type="password"
-					value={password}
-					onChange={(e) => setPassword(e.target.value)}
-				/>
-				<label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-					<input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
-					<span>Remember me (7 days)</span>
-				</label>
-				<button type="submit">Log in</button>
-			</form>
-		</div>
+		<Container maxWidth="sm" sx={{ display: "grid", placeItems: "center", height: "100vh" }}>
+			<Paper elevation={3} sx={{ p: 4, width: "100%" }} component="form" onSubmit={onSubmit}>
+				<Typography variant="h5" align="center" gutterBottom>
+					AI-Invoice
+				</Typography>
+				<Box sx={{ display: "grid", gap: 2 }}>
+					<TextField label="Email" value={email} onChange={(e) => setEmail(e.target.value)} fullWidth />
+					<TextField
+						label="Password"
+						type="password"
+						value={password}
+						onChange={(e) => setPassword(e.target.value)}
+						fullWidth
+					/>
+					<FormControlLabel
+						control={<Checkbox checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />}
+						label="Remember me (7 days)"
+					/>
+					<Button type="submit" variant="contained" size="large">
+						Log in
+					</Button>
+				</Box>
+			</Paper>
+		</Container>
 	);
 }
 

@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import type { RootState } from "../../app/store";
+import { authenticatedFetch } from "../../utils/api";
 
 export type InvoiceListItem = { id: number; name: string; status: string; created_at: string };
 export type InvoiceItem = { id?: number; item_date: string; description: string; quantity: number; amount: number };
@@ -8,6 +9,7 @@ export type InvoiceDetail = {
 	name: string;
 	status: string;
 	audio_url: string | null;
+	transcript?: string | null;
 	created_at: string;
 	updated_at: string;
 };
@@ -18,10 +20,12 @@ const authHeader = (getState: () => RootState) => {
 };
 
 export const fetchInvoices = createAsyncThunk("invoices/fetchAll", async (search: string | undefined, thunk) => {
-	const res = await fetch(`/api/invoices${search ? `?search=${encodeURIComponent(search)}` : ""}`, {
-		headers: { ...authHeader(thunk.getState as any) },
-		credentials: "include"
-	});
+	const res = await authenticatedFetch(
+		`/api/invoices${search ? `?search=${encodeURIComponent(search)}` : ""}`,
+		{ method: "GET" },
+		thunk.getState as any,
+		thunk.dispatch as any
+	);
 	if (!res.ok) throw new Error("List failed");
 	return (await res.json()) as { items: InvoiceListItem[] };
 });
@@ -41,10 +45,7 @@ export const createInvoice = createAsyncThunk(
 );
 
 export const fetchInvoice = createAsyncThunk("invoices/fetchOne", async (id: number, thunk) => {
-	const res = await fetch(`/api/invoices/${id}`, {
-		headers: { ...authHeader(thunk.getState as any) },
-		credentials: "include"
-	});
+	const res = await authenticatedFetch(`/api/invoices/${id}`, { method: "GET" }, thunk.getState as any, thunk.dispatch as any);
 	if (!res.ok) throw new Error("Fetch failed");
 	return (await res.json()) as { invoice: InvoiceDetail; items: InvoiceItem[] };
 });
@@ -52,12 +53,16 @@ export const fetchInvoice = createAsyncThunk("invoices/fetchOne", async (id: num
 export const saveItems = createAsyncThunk(
 	"invoices/saveItems",
 	async (payload: { id: number; items: InvoiceItem[] }, thunk) => {
-		const res = await fetch(`/api/invoices/${payload.id}/items`, {
-			method: "PUT",
-			headers: { "Content-Type": "application/json", ...authHeader(thunk.getState as any) },
-			credentials: "include",
-			body: JSON.stringify({ items: payload.items })
-		});
+		const res = await authenticatedFetch(
+			`/api/invoices/${payload.id}/items`,
+			{
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ items: payload.items })
+			},
+			thunk.getState as any,
+			thunk.dispatch as any
+		);
 		if (!res.ok) throw new Error("Save failed");
 		return true as const;
 	}

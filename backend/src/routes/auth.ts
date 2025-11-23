@@ -8,13 +8,27 @@ const router = Router();
 
 router.post("/login", async (req, res) => {
 	const { email, password, rememberMe } = req.body as { email: string; password: string; rememberMe?: boolean };
-	if (!email || !password) return res.status(400).json({ error: "Missing credentials" });
+	console.log("[auth/login] attempt", { email, rememberMe });
+	if (!email || !password) {
+		console.warn("[auth/login] missing credentials");
+		return res.status(400).json({ error: "Missing credentials" });
+	}
 	const db = getDb();
 	const [rows] = await db.query("SELECT id, email, password_hash FROM users WHERE email = ?", [email]);
 	const user = (rows as any[])[0];
-	if (!user) return res.status(401).json({ error: "Invalid credentials" });
-	const ok = await bcrypt.compare(password, user.password_hash);
-	if (!ok) return res.status(401).json({ error: "Invalid credentials" });
+	console.log("[auth/login] user", user ? "found" : "not found");
+	if (!user) {
+		console.warn("[auth/login] invalid credentials - user not found");
+		return res.status(401).json({ error: "Invalid credentials" });
+	}
+	const storedHash = String(user.password_hash || "").trim();
+	console.log("[auth/login] hash length", storedHash.length);
+	const ok = await bcrypt.compare(password, storedHash);
+	console.log("[auth/login] password match", ok);
+	if (!ok) {
+		console.warn("[auth/login] invalid credentials - bad password");
+		return res.status(401).json({ error: "Invalid credentials" });
+	}
 
 	const access = signAccessToken({ userId: user.id, email: user.email });
 	const refresh = generateRefreshToken();
@@ -33,6 +47,7 @@ router.post("/login", async (req, res) => {
 		maxAge: rememberMe ? env.jwt.refreshTtlDays * 24 * 3600 * 1000 : undefined,
 		path: "/"
 	});
+	console.log("[auth/login] success", { userId: user.id, rememberMe: !!rememberMe });
 	res.json({ accessToken: access, user: { id: user.id, email: user.email } });
 });
 

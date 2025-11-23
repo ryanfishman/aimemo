@@ -52,6 +52,11 @@ export default function InvoiceView() {
 						Your browser does not support the audio element.
 					</audio>
 				)}
+				{invoice.transcript && (
+					<div style={{ border: "1px solid #eee", padding: 10, whiteSpace: "pre-wrap", maxHeight: 200, overflow: "auto" }}>
+						{invoice.transcript}
+					</div>
+				)}
 				<div style={{ overflow: "auto", border: "1px solid #eee" }}>
 					<table style={{ width: "100%", borderCollapse: "collapse" }}>
 						<thead style={{ position: "sticky", top: 0, background: "#fafafa" }}>

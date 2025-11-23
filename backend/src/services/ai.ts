@@ -2,6 +2,7 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { env } from "../config/env.js";
 import { getS3 } from "../config/s3.js";
 import OpenAI from "openai";
+import { toFile } from "openai/uploads";
 
 const openai = new OpenAI({ apiKey: env.openai.apiKey });
 
@@ -22,11 +23,11 @@ export async function downloadAudio(objectKey: string): Promise<Buffer> {
 }
 
 export async function transcribeWhisper(audio: Buffer, filename = "audio.wav"): Promise<string> {
-	// Uses OpenAI Whisper via Transcriptions API
-	const file = new File([audio], filename);
+	// Uses OpenAI Whisper via Transcriptions API (buffer → File via helper)
+	const file = await toFile(audio, filename);
 	const result = await openai.audio.transcriptions.create({
 		file,
-		model: "whisper-1",
+		model: "gpt-4o-transcribe",
 		response_format: "text"
 	});
 	// result is string for response_format=text
@@ -45,7 +46,7 @@ export async function extractInvoiceItemsFromTranscript(transcript: string, fall
 		"You are an accounting assistant. Given a meeting transcript with speakers (Person 1/Person 2), output JSON strictly matching schema: items[{ item_date: YYYY-MM-DD, description: string, quantity: number, amount: number }]. Assume CAD. If dates are ambiguous, use the provided fallback date. Keep concise legal-style descriptions.";
 	const userPrompt = `Fallback date: ${fallbackDateISO}\nTranscript:\n${transcript}`;
 	const completion = await openai.chat.completions.create({
-		model: "gpt-5.0-mini", // placeholder model name
+		model: "gpt-5",
 		messages: [
 			{ role: "system", content: systemPrompt },
 			{ role: "user", content: userPrompt }

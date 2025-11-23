@@ -14,9 +14,13 @@ export async function claimNextJob() {
 	const conn = await getDb().getConnection();
 	try {
 		await conn.beginTransaction();
-		// lock next pending job
+		// lock next job: prefer pending; retry failed jobs older than 60s
 		const [rows] = await conn.query(
-			"SELECT * FROM jobs WHERE state='pending' ORDER BY created_at ASC LIMIT 1 FOR UPDATE"
+			"SELECT * FROM jobs " +
+				"WHERE state='pending' " +
+				"   OR (state='failed' AND TIMESTAMPDIFF(SECOND, updated_at, NOW()) >= 60) " +
+				"ORDER BY (state='failed') ASC, created_at ASC " +
+				"LIMIT 1 FOR UPDATE"
 		);
 		const job = (rows as any[])[0];
 		if (!job) {

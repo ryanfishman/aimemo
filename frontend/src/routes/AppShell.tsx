@@ -1,8 +1,29 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../utils/hooks";
 import { logout, refresh } from "../features/auth/authSlice";
-import { createInvoice, fetchInvoices } from "../features/invoices/invoicesSlice";
+import { fetchInvoices } from "../features/invoices/invoicesSlice";
+import {
+	AppBar,
+	Box,
+	Button,
+	Dialog,
+	DialogActions,
+	DialogContent,
+	DialogTitle,
+	IconButton,
+	List,
+	ListItem,
+	ListItemButton,
+	ListItemSecondaryAction,
+	ListItemText,
+	Paper,
+	TextField,
+	Toolbar,
+	Typography
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 export default function AppShell() {
 	const dispatch = useAppDispatch();
@@ -13,6 +34,9 @@ export default function AppShell() {
 	const [showDialog, setShowDialog] = useState(false);
 	const [newName, setNewName] = useState("");
 	const [file, setFile] = useState<File | null>(null);
+	const [confirmId, setConfirmId] = useState<number | null>(null);
+	const location = useLocation();
+	const selectedId = Number(location.pathname.split("/").pop());
 
 	useEffect(() => {
 		dispatch(refresh()).unwrap().catch(() => navigate("/"));
@@ -35,103 +59,118 @@ export default function AppShell() {
 
 	async function createNewInvoice() {
 		if (!file || !newName) return;
-		// Request presign
-		const presign = await fetch("/api/uploads/presign", {
+		const fd = new FormData();
+		fd.append("name", newName);
+		fd.append("file", file);
+		const res = await fetch("/api/invoices/create_ai_invoice", {
 			method: "POST",
-			headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth.accessToken}` },
+			headers: { Authorization: `Bearer ${auth.accessToken || ""}` },
 			credentials: "include",
-			body: JSON.stringify({ filename: file.name, contentType: file.type || "application/octet-stream" })
+			body: fd
 		}).then((r) => r.json());
-		// Upload direct to Spaces
-		await fetch(presign.url, {
-			method: "PUT",
-			headers: { "Content-Type": file.type || "application/octet-stream" },
-			body: file
-		});
-		// Create invoice
-		const res = await dispatch(createInvoice({ name: newName, objectKey: presign.objectKey })).unwrap();
+		// Refresh list immediately so the new invoice appears
+		dispatch(fetchInvoices(""));
 		setShowDialog(false);
 		setFile(null);
 		setNewName("");
 		navigate(`/app/invoice/${res.id}`);
 	}
 
+	async function onDelete(id: number) {
+		await fetch(`/api/invoices/${id}`, {
+			method: "DELETE",
+			headers: { Authorization: `Bearer ${auth.accessToken || ""}` },
+			credentials: "include"
+		});
+		setConfirmId(null);
+		dispatch(fetchInvoices(""));
+		if (selectedId === id) navigate("/app");
+	}
+
 	return (
-		<div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-			<header
-				style={{
-					display: "flex",
-					alignItems: "center",
-					justifyContent: "space-between",
-					padding: "8px 16px",
-					borderBottom: "1px solid #ddd"
-				}}
-			>
-				<h3 style={{ margin: 0 }}>AI-Invoice</h3>
-				<button onClick={onLogout}>Logout</button>
-			</header>
-			<div style={{ display: "flex", flex: 1, minHeight: 0 }}>
-				<aside
-					style={{
-						width: 300,
-						borderRight: "1px solid #eee",
-						padding: 12,
-						display: "flex",
-						flexDirection: "column",
-						gap: 8
-					}}
+		<Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+			<AppBar position="static" color="default" elevation={1}>
+				<Toolbar>
+					<Typography variant="h6" sx={{ flex: 1 }}>
+						AI-Invoice
+					</Typography>
+					<Button color="inherit" onClick={onLogout}>
+						Logout
+					</Button>
+				</Toolbar>
+			</AppBar>
+			<Box sx={{ display: "flex", flex: 1, minHeight: 0 }}>
+				<Paper
+					variant="outlined"
+					sx={{ width: 320, borderRadius: 0, borderLeft: 0, borderTop: 0, borderBottom: 0, p: 1 }}
 				>
-					<div style={{ display: "flex", gap: 8 }}>
-						<input
+					<Box sx={{ display: "flex", gap: 1, p: 1 }}>
+						<TextField
+							size="small"
 							placeholder="Search by name"
 							value={search}
 							onChange={(e) => setSearch(e.target.value)}
-							style={{ flex: 1 }}
+							fullWidth
 						/>
-						<button onClick={() => setShowDialog(true)}>+</button>
-					</div>
-					<div style={{ overflow: "auto" }}>
+						<IconButton color="primary" onClick={() => setShowDialog(true)}>
+							<AddIcon />
+						</IconButton>
+					</Box>
+					<List dense sx={{ overflow: "auto", height: "calc(100% - 64px)" }}>
 						{filtered.map((i) => (
-							<div
-								key={i.id}
-								onClick={() => navigate(`/app/invoice/${i.id}`)}
-								style={{ padding: "8px 4px", borderBottom: "1px solid #f2f2f2", cursor: "pointer" }}
-							>
-								<div style={{ fontWeight: 600 }}>{i.name}</div>
-								<div style={{ fontSize: 12, color: "#666" }}>{new Date(i.created_at).toLocaleDateString()}</div>
-							</div>
+							<ListItem key={i.id} disablePadding secondaryAction={
+								<IconButton edge="end" aria-label="delete" onClick={() => setConfirmId(i.id)}>
+									<DeleteIcon />
+								</IconButton>
+							}>
+								<ListItemButton selected={i.id === selectedId} onClick={() => navigate(`/app/invoice/${i.id}`)}>
+									<ListItemText
+										primary={i.name}
+										secondary={new Date(i.created_at).toLocaleDateString()}
+									/>
+								</ListItemButton>
+							</ListItem>
 						))}
-					</div>
-				</aside>
-				<main style={{ flex: 1, minWidth: 0 }}>
+					</List>
+				</Paper>
+				<Box sx={{ flex: 1, minWidth: 0 }}>
 					<Outlet />
-				</main>
-			</div>
+				</Box>
+			</Box>
 
-			{showDialog && (
-				<div
-					style={{
-						position: "fixed",
-						inset: 0,
-						background: "rgba(0,0,0,0.3)",
-						display: "grid",
-						placeItems: "center"
-					}}
-				>
-					<div style={{ background: "#fff", padding: 20, borderRadius: 8, width: 420, display: "grid", gap: 8 }}>
-						<h3 style={{ margin: 0 }}>New Invoice</h3>
-						<input placeholder="Invoice name" value={newName} onChange={(e) => setNewName(e.target.value)} />
-						<input type="file" accept="audio/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-						<div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-							<button onClick={() => setShowDialog(false)}>Cancel</button>
-							<button onClick={createNewInvoice} disabled={!newName || !file}>
-								Create
-							</button>
-						</div>
-					</div>
-				</div>
-			)}
-		</div>
+			<Dialog open={showDialog} onClose={() => setShowDialog(false)}>
+				<DialogTitle>New Invoice</DialogTitle>
+				<DialogContent sx={{ display: "grid", gap: 2, pt: 2, width: 420 }}>
+					<TextField label="Invoice name" value={newName} onChange={(e) => setNewName(e.target.value)} />
+					<Button variant="outlined" component="label">
+						Choose audio file
+						<input type="file" accept="audio/*" hidden onChange={(e) => setFile(e.target.files?.[0] || null)} />
+					</Button>
+					<Typography variant="body2" color="text.secondary">
+						{file?.name || "No file selected"}
+					</Typography>
+				</DialogContent>
+				<DialogActions>
+					<Button onClick={() => setShowDialog(false)}>Cancel</Button>
+					<Button onClick={createNewInvoice} disabled={!newName || !file} variant="contained">
+						Create
+					</Button>
+				</DialogActions>
+			</Dialog>
+
+			<Dialog open={confirmId !== null} onClose={() => setConfirmId(null)}>
+				<DialogTitle>Delete invoice?</DialogTitle>
+				<DialogContent>
+					<Typography variant="body2">This will remove the invoice and its audio file. This action cannot be undone.</Typography>
+				</DialogContent>
+				<DialogActions>
+					<Button onClick={() => setConfirmId(null)}>Cancel</Button>
+					<Button color="error" variant="contained" onClick={() => confirmId && onDelete(confirmId)}>
+						Delete
+					</Button>
+				</DialogActions>
+			</Dialog>
+		</Box>
 	);
 }
 
